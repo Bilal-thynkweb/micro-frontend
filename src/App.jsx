@@ -13,16 +13,19 @@ import Home from "./Components/Home/Home";
 import ShowcaseLayout from "./Components/ShowcaseLayout/ShowcaseLayout";
 import { Editor, Frame, Canvas, Selector } from "@craftjs/core";
 import { TextComponent } from "./Components/TextComponent/Text";
+import MyContextProvider from "./context/stateContext";
 
 const App = () => {
   const pageRef = useRef(null);
   return (
     <>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Root pageRef={pageRef} />} />
-          <Route path="/home" element={<Home pageRef={pageRef} />} />
-        </Routes>
+        <MyContextProvider>
+          <Routes>
+            <Route path="/" element={<Root pageRef={pageRef} />} />
+            <Route path="/home" element={<Home pageRef={pageRef} />} />
+          </Routes>
+        </MyContextProvider>
       </BrowserRouter>
     </>
   );
@@ -104,7 +107,11 @@ function Root({ pageRef }) {
   };
   return (
     <>
-      <ShowcaseLayout onLayoutChange={onLayoutChange} />
+      <ShowcaseLayout
+        onLayoutChange={onLayoutChange}
+        navigate={navigate}
+        pageRef={pageRef}
+      />
       {/* <Layout>
         <div>
           <div

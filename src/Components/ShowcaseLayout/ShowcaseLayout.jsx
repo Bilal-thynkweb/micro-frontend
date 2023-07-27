@@ -4,9 +4,11 @@ import _ from "lodash";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import RemoteApp from "widget1/Img";
 import RemoteApp2 from "widget2/Img";
+import { MyContext } from "../../context/stateContext";
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
 export default class ShowcaseLayout extends React.Component {
+  static contextType = MyContext;
   constructor(props) {
     super(props);
     this.state = {
@@ -15,6 +17,7 @@ export default class ShowcaseLayout extends React.Component {
       mounted: false,
       layouts: { lg: props.initialLayout },
       newCounter: 0,
+      layoutRef: React.createRef(),
     };
 
     this.onBreakpointChange = this.onBreakpointChange.bind(this);
@@ -25,6 +28,8 @@ export default class ShowcaseLayout extends React.Component {
 
   componentDidMount() {
     this.setState({ mounted: true });
+    const { setState } = this.context;
+    setState((s) => ({ ...s, mounted: true }));
   }
 
   //   generateDOM() {
@@ -64,6 +69,8 @@ export default class ShowcaseLayout extends React.Component {
     this.setState({
       currentBreakpoint: breakpoint,
     });
+    const { setState } = this.context;
+    setState((s) => ({ ...s, currentBreakpoint: breakpoint }));
   }
 
   onCompactTypeChange() {
@@ -75,6 +82,8 @@ export default class ShowcaseLayout extends React.Component {
         ? null
         : "horizontal";
     this.setState({ compactType });
+    const { setState } = this.context;
+    setState((s) => ({ ...s, compactType: compactType }));
   }
 
   onLayoutChange(layout, layouts) {
@@ -85,6 +94,8 @@ export default class ShowcaseLayout extends React.Component {
     this.setState({
       layouts: { lg: generateLayout() },
     });
+    const { setState } = this.context;
+    setState((s) => ({ ...s, lg: generateLayout() }));
   }
 
   onDrop = (layout, layoutItem, _event) => {
@@ -105,13 +116,45 @@ export default class ShowcaseLayout extends React.Component {
         },
         newCounter: this.state.newCounter + 1,
       });
+      const { setState } = this.context;
+      setState((s) => ({
+        ...s,
+        layouts: {
+          lg: this.state.layouts.lg.concat({
+            i: this.state.newCounter.toString(),
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h + 0.5,
+            additional: _event.dataTransfer.getData("type"),
+          }),
+        },
+      }));
     }
   };
 
+  handlePublish = () => {
+    console.log(this.state.layoutRef);
+    const layoutCopy = this.state.layoutRef.current.cloneNode(true);
+    layoutCopy.firstChild.style.background = "unset";
+    layoutCopy.firstChild
+      .querySelectorAll(".react-grid-item")
+      .forEach((item) => {
+        item.style.resize = "none";
+        item.style.border = "none";
+        item.style.background = "unset";
+      });
+    this.props.pageRef.current = layoutCopy;
+    this.props.navigate("/home");
+  };
+
   render() {
+    const { state } = this.context;
+    console.log("state", state);
     return (
-      <div className="flex">
-        {/* <div>
+      <>
+        <div className="flex" style={{ marginTop: "5rem" }}>
+          {/* <div>
           Current Breakpoint: {this.state.currentBreakpoint} (
           {this.props.cols[this.state.currentBreakpoint]} columns)
         </div>
@@ -123,57 +166,65 @@ export default class ShowcaseLayout extends React.Component {
         <button onClick={this.onCompactTypeChange}>
           Change Compaction Type
         </button> */}
-        <section style={{}}>
-          <div
-            className="droppable-element"
-            draggable={true}
-            unselectable="on"
-            style={{ width: "7rem" }}
-            // this is a hack for firefox
-            // Firefox requires some kind of initialization
-            // which we can do by adding this attribute
-            // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
-            onDragStart={(e) => e.dataTransfer.setData("type", "remoteApp")}
-          >
-            <RemoteApp />
+          <div className="w-full" ref={state.layoutRef}>
+            <ResponsiveReactGridLayout
+              {...this.props}
+              layouts={this.state.layouts}
+              onBreakpointChange={this.onBreakpointChange}
+              onLayoutChange={this.onLayoutChange}
+              // WidthProvider option
+              measureBeforeMount={false}
+              // I like to have it animate on mount. If you don't, delete `useCSSTransforms` (it's default `true`)
+              // and set `measureBeforeMount={true}`.
+              useCSSTransforms={this.state.mounted}
+              compactType={this.state.compactType}
+              preventCollision={!this.state.compactType}
+              onDrop={this.onDrop}
+              isDroppable={true}
+              style={{ minHeight: "100%" }}
+              resizeHandles={["se"]}
+            >
+              {_.map(this.state.layouts.lg, (el) => this.generateDOM(el))}
+              {/* {this.generateDOM()} */}
+            </ResponsiveReactGridLayout>
           </div>
-          <div
-            className="droppable-element"
-            draggable={true}
-            unselectable="on"
-            style={{ width: "7rem" }}
-            // this is a hack for firefox
-            // Firefox requires some kind of initialization
-            // which we can do by adding this attribute
-            // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
-            onDragStart={(e) => e.dataTransfer.setData("type", "remoteApp2")}
-          >
-            <RemoteApp2 />
-          </div>
-        </section>
-        <div className="w-full">
-          <ResponsiveReactGridLayout
-            {...this.props}
-            layouts={this.state.layouts}
-            onBreakpointChange={this.onBreakpointChange}
-            onLayoutChange={this.onLayoutChange}
-            // WidthProvider option
-            measureBeforeMount={false}
-            // I like to have it animate on mount. If you don't, delete `useCSSTransforms` (it's default `true`)
-            // and set `measureBeforeMount={true}`.
-            useCSSTransforms={this.state.mounted}
-            compactType={this.state.compactType}
-            preventCollision={!this.state.compactType}
-            onDrop={this.onDrop}
-            isDroppable={true}
-            style={{ minHeight: "100%" }}
-            resizeHandles={["se"]}
-          >
-            {_.map(this.state.layouts.lg, (el) => this.generateDOM(el))}
-            {/* {this.generateDOM()} */}
-          </ResponsiveReactGridLayout>
+          <section style={{}}>
+            <div
+              className="droppable-element"
+              draggable={true}
+              unselectable="on"
+              style={{ width: "7rem" }}
+              // this is a hack for firefox
+              // Firefox requires some kind of initialization
+              // which we can do by adding this attribute
+              // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
+              onDragStart={(e) => e.dataTransfer.setData("type", "remoteApp")}
+            >
+              <RemoteApp />
+            </div>
+            <div
+              className="droppable-element"
+              draggable={true}
+              unselectable="on"
+              style={{ width: "7rem" }}
+              // this is a hack for firefox
+              // Firefox requires some kind of initialization
+              // which we can do by adding this attribute
+              // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
+              onDragStart={(e) => e.dataTransfer.setData("type", "remoteApp2")}
+            >
+              <RemoteApp2 />
+            </div>
+          </section>
         </div>
-      </div>
+        <button
+          className="btn"
+          style={{ position: "fixed", top: "3rem", right: "1rem" }}
+          onClick={this.handlePublish}
+        >
+          Publish
+        </button>
+      </>
     );
   }
 }
@@ -190,7 +241,7 @@ ShowcaseLayout.defaultProps = {
   initialLayout: generateLayout(),
 };
 
-function generateLayout() {
+export function generateLayout() {
   return _.map(_.range(0, 0), function (item, i) {
     var y = Math.ceil(Math.random() * 4) + 1;
     return {
