@@ -1,7 +1,11 @@
 // MyContextProvider.js
 import React, { useState, createContext } from "react";
-import { generateLayout } from "../Components/ShowcaseLayout/ShowcaseLayout";
+import {
+  generateLayout,
+  getFromLS,
+} from "../Components/ShowcaseLayout/ShowcaseLayout";
 export const MyContext = createContext();
+const originalLayouts = getFromLS("layouts") || {};
 
 const MyContextProvider = ({ children }) => {
   // Define your state or any data you want to share through the context
@@ -9,7 +13,7 @@ const MyContextProvider = ({ children }) => {
     currentBreakpoint: "lg",
     compactType: "vertical",
     mounted: false,
-    layouts: { lg: generateLayout() },
+    layouts: { lg: [] },
     newCounter: 0,
     layoutRef: React.createRef(),
   });

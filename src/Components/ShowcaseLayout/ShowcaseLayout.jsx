@@ -6,6 +6,7 @@ import RemoteApp from "widget1/Img";
 import RemoteApp2 from "widget2/Img";
 import { MyContext } from "../../context/stateContext";
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
+const originalLayout = getFromLS("lg") || { lg: [] };
 
 export default class ShowcaseLayout extends React.Component {
   static contextType = MyContext;
@@ -15,8 +16,8 @@ export default class ShowcaseLayout extends React.Component {
       currentBreakpoint: "lg",
       compactType: "vertical",
       mounted: false,
-      layouts: { lg: props.initialLayout },
-      newCounter: 0,
+      layouts: JSON.parse(JSON.stringify(originalLayout)),
+      newCounter: parseInt(localStorage.getItem("counter")) || 0,
       layoutRef: React.createRef(),
     };
 
@@ -28,30 +29,14 @@ export default class ShowcaseLayout extends React.Component {
 
   componentDidMount() {
     this.setState({ mounted: true });
-    const { setState } = this.context;
-    setState((s) => ({ ...s, mounted: true }));
+    // S
   }
 
-  //   generateDOM() {
-  //     return _.map(this.state.layouts.lg, function (l, i) {
-  //       return (
-  //         <div key={i} className={l.static ? "static" : ""}>
-  //           {i === 0 ? <RemoteApp2 /> : <RemoteApp />}
-  //           {/* {l.static ? (
-  //             <span
-  //               className="text"
-  //               title="This item is static and cannot be removed or resized."
-  //             >
-  //               Static - {i}
-  //             </span>
-  //           ) : (
-  //             <RemoteApp />
-  //             // <span className="text">{i}</span>
-  //           )} */}
-  //         </div>
-  //       );
-  //     });
-  //   }
+  resetLayout() {
+    this.setState({ layouts: { lg: [] }, newCounter: 0 });
+    localStorage.removeItem("rgl-7");
+    localStorage.removeItem("counter");
+  }
 
   generateDOM(el) {
     return (
@@ -66,13 +51,8 @@ export default class ShowcaseLayout extends React.Component {
     );
   }
   onBreakpointChange(breakpoint) {
-    this.setState({
-      currentBreakpoint: breakpoint,
-    });
-    const { setState } = this.context;
-    setState((s) => ({ ...s, currentBreakpoint: breakpoint }));
+    this.setState({ currentBreakpoint: breakpoint });
   }
-
   onCompactTypeChange() {
     const { compactType: oldCompactType } = this.state;
     const compactType =
@@ -82,59 +62,55 @@ export default class ShowcaseLayout extends React.Component {
         ? null
         : "horizontal";
     this.setState({ compactType });
-    const { setState } = this.context;
-    setState((s) => ({ ...s, compactType: compactType }));
   }
 
   onLayoutChange(layout, layouts) {
-    this.props.onLayoutChange(layout, layouts);
+    if (layout.some((item) => item.i === "__dropping-elem__")) return;
+    console.log("onLayoutChange", layout, layouts);
+
+    const updatedLayout = this.state.layouts.lg.map((item, i) => {
+      const { w, h, x, y } = layout[i];
+      item = { ...item, w, h, x, y };
+      return item;
+    });
+    this.setState({ layouts: { lg: updatedLayout } });
+    saveToLS("lg", updatedLayout);
   }
 
   onNewLayout() {
-    this.setState({
-      layouts: { lg: generateLayout() },
-    });
-    const { setState } = this.context;
-    setState((s) => ({ ...s, lg: generateLayout() }));
+    // const { setState } = this.context;
+    // setState((s) => ({ ...s, lg: generateLayout() }));
   }
 
   onDrop = (layout, layoutItem, _event) => {
-    if (
-      _event.dataTransfer.getData("type") === "remoteApp" ||
-      _event.dataTransfer.getData("type") === "remoteApp2"
-    ) {
+    let DroppingItem = _event.dataTransfer.getData("type");
+    if (DroppingItem === "remoteApp" || DroppingItem === "remoteApp2") {
+      console.log("onDrop", layout, layoutItem);
       this.setState({
         layouts: {
           lg: this.state.layouts.lg.concat({
             i: this.state.newCounter.toString(),
             x: layoutItem.x,
             y: layoutItem.y,
-            w: layoutItem.w,
-            h: layoutItem.h + 0.5,
+            w: DroppingItem === "remoteApp" ? layoutItem.w + 1 : layoutItem.w,
+            h:
+              DroppingItem === "remoteApp"
+                ? layoutItem.h + 1
+                : layoutItem.h + 0.5,
+            minW: 1,
+            maxW: 4,
+            minH: 1,
+            maxH: 4,
             additional: _event.dataTransfer.getData("type"),
           }),
         },
         newCounter: this.state.newCounter + 1,
       });
-      const { setState } = this.context;
-      setState((s) => ({
-        ...s,
-        layouts: {
-          lg: this.state.layouts.lg.concat({
-            i: this.state.newCounter.toString(),
-            x: layoutItem.x,
-            y: layoutItem.y,
-            w: layoutItem.w,
-            h: layoutItem.h + 0.5,
-            additional: _event.dataTransfer.getData("type"),
-          }),
-        },
-      }));
+      localStorage.setItem("counter", this.state.newCounter + 1);
     }
   };
 
   handlePublish = () => {
-    console.log(this.state.layoutRef);
     const layoutCopy = this.state.layoutRef.current.cloneNode(true);
     layoutCopy.firstChild.style.background = "unset";
     layoutCopy.firstChild
@@ -144,29 +120,17 @@ export default class ShowcaseLayout extends React.Component {
         item.style.border = "none";
         item.style.background = "unset";
       });
+    localStorage.setItem("domNode", JSON.stringify(layoutCopy));
     this.props.pageRef.current = layoutCopy;
     this.props.navigate("/home");
   };
 
   render() {
-    const { state } = this.context;
-    console.log("state", state);
     return (
       <>
-        <div className="flex" style={{ marginTop: "5rem" }}>
-          {/* <div>
-          Current Breakpoint: {this.state.currentBreakpoint} (
-          {this.props.cols[this.state.currentBreakpoint]} columns)
-        </div>
-        <div>
-          Compaction type:{" "}
-          {_.capitalize(this.state.compactType) || "No Compaction"}
-        </div>
-        <button onClick={this.onNewLayout}>Generate New Layout</button>
-        <button onClick={this.onCompactTypeChange}>
-          Change Compaction Type
-        </button> */}
-          <div className="w-full" ref={state.layoutRef}>
+        <button onClick={() => this.resetLayout()}>Reset Layout</button>
+        <div className="flex min-h-screen" style={{ marginTop: "5rem" }}>
+          <div className="w-full" ref={this.state.layoutRef}>
             <ResponsiveReactGridLayout
               {...this.props}
               layouts={this.state.layouts}
@@ -193,7 +157,7 @@ export default class ShowcaseLayout extends React.Component {
               className="droppable-element"
               draggable={true}
               unselectable="on"
-              style={{ width: "7rem" }}
+              style={{ width: "7rem", height: "7rem" }}
               // this is a hack for firefox
               // Firefox requires some kind of initialization
               // which we can do by adding this attribute
@@ -206,7 +170,7 @@ export default class ShowcaseLayout extends React.Component {
               className="droppable-element"
               draggable={true}
               unselectable="on"
-              style={{ width: "7rem" }}
+              style={{ width: "7rem", height: "7rem" }}
               // this is a hack for firefox
               // Firefox requires some kind of initialization
               // which we can do by adding this attribute
@@ -254,4 +218,27 @@ export function generateLayout() {
       //   static: Math.random() < 0.05,
     };
   });
+}
+
+export function getFromLS(key) {
+  let ls = {};
+  if (global.localStorage) {
+    try {
+      ls = JSON.parse(global.localStorage.getItem("rgl-7")) || { lg: [] };
+    } catch (e) {
+      /*Ignore*/
+    }
+  }
+  return ls;
+}
+
+export function saveToLS(key, value) {
+  if (global.localStorage) {
+    global.localStorage.setItem(
+      "rgl-7",
+      JSON.stringify({
+        [key]: value,
+      })
+    );
+  }
 }
